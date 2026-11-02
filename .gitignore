@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+
+# personal music files and exported mixes
+songs/
+*.mp3
+*.wav
+*.flac
