@@ -7,3 +7,7 @@ songs/
 *.mp3
 *.wav
 *.flac
+
+# downloaded by setup_sounds.py
+third_party/
+soundfonts/
