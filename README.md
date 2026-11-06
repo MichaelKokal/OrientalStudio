@@ -8,6 +8,8 @@ Turning a Casio CTK-574 into an Arabic / Oriental keyboard using Python, MIDI an
 
 **Play in any maqam, with real quarter tones.** Pick Bayati, Rast, Saba, Sikah, Huzam, Hijaz, Nahawand, Kurd or Ajam and the right keys are retuned. In Bayati on D, the E key plays E half-flat, which a normal piano can't do. Move the root and the quarter tones move with it. Dots on the piano show which keys belong to the maqam.
 
+**Play over a live rhythm.** Start a maqsoum, baladi, saidi, malfuf, ayoub or dabke beat, change the tempo while it plays, and add fills. Switching rhythms waits for the end of the bar, like an arranger keyboard. There are two drum kits: a synthesized darbuka, and recorded congas and bongos from the sound bank.
+
 **Add Arabic rhythms to any song.** Load an MP3 or WAV, and Oriental Studio finds the beat and plays a darbuka rhythm in time with it. It follows the song's real beats instead of one fixed tempo, so it stays in sync with live recordings that speed up and slow down.
 
 Rhythms: maqsoum, baladi, saidi, malfuf, ayoub, dabke.
@@ -36,6 +38,9 @@ python play.py
   1 - 9                       pick an instrument
   Up / Down                   pick a maqam
   Left / Right                move the maqam's root
+  Space                       start / stop the rhythm
+  - / =                       tempo down / up
+  [ / ]                       pick a rhythm
 ```
 
 You can also click the keys and buttons on screen. Maqamat live in `oriental_studio/maqamat.py`, and quarter tones are set to exactly half a semitone there (`QUARTER_FLAT = -50`) if you want to tune them by ear.
@@ -67,8 +72,8 @@ Rhythm patterns live in `oriental_studio/rhythms.py` as simple text (`D` = dum, 
 1. Song import + beat sync ✅
 2. Instrument sounds, played from the computer keyboard ✅
 3. Maqamat with quarter tones ✅
-4. Connect the Casio over USB-MIDI
-5. Live rhythm engine with tempo control
+4. Live rhythm engine with tempo control ✅
+5. Connect the Casio over USB-MIDI
 6. Real Arabic instrument and darbuka recordings
 7. Automatic accompaniment (bass, chords, drums from left-hand chords)
 8. Full performance interface

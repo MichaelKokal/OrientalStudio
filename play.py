@@ -6,6 +6,7 @@ Until the Casio is connected, the computer keyboard is the piano:
      A S D F G H J K L ; '       white keys
      Z / X  octave down / up     1-9  pick an instrument
      Up / Down  pick a maqam     Left / Right  move its root
+     Space  start / stop rhythm  - / =  tempo      [ / ]  pick a rhythm
 
 You can also click the keys and buttons on screen.
 """
@@ -13,9 +14,12 @@ You can also click the keys and buttons on screen.
 import ctypes
 import tkinter as tk
 
+from oriental_studio import drums
 from oriental_studio.instruments import INSTRUMENTS
 from oriental_studio.keys import BLACK_KEYS, KEY_STEPS, NOTE_NAMES, WHITE_KEYS, WHITE_STEPS, label, note_name
 from oriental_studio.maqamat import MAQAMAT, offsets, scale_notes
+from oriental_studio.rhythm_player import SAMPLE_RATE, RhythmPlayer
+from oriental_studio.rhythms import RHYTHMS
 from oriental_studio.synth import Synth
 
 BG = "#171026"
@@ -25,8 +29,10 @@ MUTED = "#a99cc7"
 ACCENT = "#fb7185"
 GOLD = "#f5c76a"
 
-WHITE_W, WHITE_H = 52, 190
-BLACK_W, BLACK_H = 32, 118
+WHITE_W, WHITE_H = 52, 170
+BLACK_W, BLACK_H = 32, 106
+
+RHYTHM_NAMES = list(RHYTHMS)
 
 
 class App:
@@ -38,17 +44,25 @@ class App:
         self.current = 0
         self.maqam = 0
         self.tonic = MAQAMAT[0].root
+        self.rhythm = RhythmPlayer({
+            "Darbuka": drums.evened(drums.kit(SAMPLE_RATE)),
+            "Congas": drums.evened(drums.sound_bank_kit()),
+        })
 
         root.title("Oriental Studio")
         root.configure(bg=BG, padx=24, pady=20)
         root.resizable(False, False)
 
         tk.Label(root, text="ORIENTAL STUDIO", bg=BG, fg=TEXT, font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        tk.Label(root, text="Z / X octave  ·  1–9 instrument  ·  ↑ ↓ maqam  ·  ← → root",
-                 bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w", pady=(0, 6))
+        for hint in ["Z / X octave  ·  1–9 instrument  ·  ↑ ↓ maqam  ·  ← → root",
+                     "Space start / stop  ·  − / = tempo  ·  [ / ] rhythm"]:
+            tk.Label(root, text=hint, bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w")
 
         self.buttons = self._button_row("INSTRUMENT", [i.name for i in INSTRUMENTS], self.choose, numbered=True)
         self.maqam_buttons = self._button_row("MAQAM", [m.name for m in MAQAMAT], self.choose_maqam)
+        self.rhythm_buttons = self._button_row("RHYTHM", [r.capitalize() for r in RHYTHM_NAMES],
+                                               self.choose_rhythm, columns=6)
+        self._build_rhythm_controls()
         self._build_piano()
 
         self.status = tk.Label(root, bg=BG, fg=MUTED, font=("Segoe UI", 10), anchor="w")
@@ -60,21 +74,40 @@ class App:
         root.protocol("WM_DELETE_WINDOW", self.quit)
         self.choose(0)
         self.choose_maqam(0)
+        self.choose_rhythm(0)
+        self._show_beat()
 
     # ---- layout ----
 
-    def _button_row(self, title, names, on_click, numbered=False):
+    def _button(self, parent, text, on_click, **grid):
+        b = tk.Label(parent, text=text, bg=PANEL, fg=TEXT, font=("Segoe UI", 11), padx=12, pady=8, cursor="hand2")
+        b.grid(sticky="ew", padx=3, pady=3, **grid)
+        b.bind("<Button-1>", lambda e: on_click())
+        return b
+
+    def _build_rhythm_controls(self):
+        row = tk.Frame(self.root, bg=BG)
+        row.pack(fill="x", pady=(4, 0))
+        self.play_button = self._button(row, "", self.toggle_rhythm, row=0, column=0)
+        self._button(row, "−", lambda: self.change_tempo(-2), row=0, column=1)
+        self.tempo_label = tk.Label(row, bg=BG, fg=TEXT, font=("Segoe UI", 11, "bold"), width=8)
+        self.tempo_label.grid(row=0, column=2)
+        self._button(row, "+", lambda: self.change_tempo(2), row=0, column=3)
+        self.fill_button = self._button(row, "", self.toggle_fill, row=0, column=4)
+        self.kit_button = self._button(row, "", self.next_kit, row=0, column=5)
+        self.beat_dots = tk.Canvas(row, width=96, height=20, bg=BG, highlightthickness=0)
+        self.beat_dots.grid(row=0, column=6, padx=(10, 0))
+        self._show_rhythm_controls()
+
+    def _button_row(self, title, names, on_click, numbered=False, columns=5):
         tk.Label(self.root, text=title, bg=BG, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(10, 2))
         frame = tk.Frame(self.root, bg=BG)
         frame.pack(fill="x")
         buttons = []
         for i, name in enumerate(names):
             text = f"{i + 1}  {name}" if numbered else name
-            b = tk.Label(frame, text=text, bg=PANEL, fg=TEXT, font=("Segoe UI", 11), padx=12, pady=8, cursor="hand2")
-            b.grid(row=i // 5, column=i % 5, sticky="ew", padx=3, pady=3)
-            b.bind("<Button-1>", lambda e, i=i: on_click(i))
-            buttons.append(b)
-        for col in range(5):
+            buttons.append(self._button(frame, text, lambda i=i: on_click(i), row=i // columns, column=i % columns))
+        for col in range(columns):
             frame.columnconfigure(col, weight=1, uniform=title)
         return buttons
 
@@ -147,6 +180,13 @@ class App:
             self.choose_maqam((self.maqam + (1 if key == "down" else -1)) % len(MAQAMAT))
         elif key in ("left", "right"):
             self.set_tonic(self.tonic + (1 if key == "right" else -1))
+        elif key == "space":
+            self.toggle_rhythm()
+        elif key in ("minus", "equal"):
+            self.change_tempo(2 if key == "equal" else -2)
+        elif key in ("bracketleft", "bracketright"):
+            current = RHYTHM_NAMES.index(self.rhythm.rhythm)
+            self.choose_rhythm((current + (1 if key == "bracketright" else -1)) % len(RHYTHM_NAMES))
 
     def key_up(self, event):
         self.release(event.keysym.lower())
@@ -189,7 +229,50 @@ class App:
             self.piano.itemconfigure(dot, fill=colour, state="normal" if pc in in_scale else "hidden")
         self._show_status()
 
+    # ---- rhythm ----
+
+    def choose_rhythm(self, index):
+        self.rhythm.set_rhythm(RHYTHM_NAMES[index])
+        self._highlight(self.rhythm_buttons, index)
+
+    def toggle_rhythm(self):
+        if self.rhythm.playing:
+            self.rhythm.stop()
+        else:
+            self.rhythm.start()
+        self._show_rhythm_controls()
+
+    def change_tempo(self, amount):
+        self.rhythm.bpm = max(40, min(240, self.rhythm.bpm + amount))
+        self._show_rhythm_controls()
+
+    def toggle_fill(self):
+        self.rhythm.set_rhythm(fill=not self.rhythm.fill)
+        self._show_rhythm_controls()
+
+    def next_kit(self):
+        names = list(self.rhythm.kits)
+        self.rhythm.kit = names[(names.index(self.rhythm.kit) + 1) % len(names)]
+        self._show_rhythm_controls()
+
     # ---- display ----
+
+    def _show_rhythm_controls(self):
+        r = self.rhythm
+        self.play_button.configure(text="■  Stop" if r.playing else "▶  Start",
+                                   bg=ACCENT if r.playing else PANEL, fg=BG if r.playing else TEXT)
+        self.tempo_label.configure(text=f"{r.bpm} BPM")
+        self.fill_button.configure(text=f"Fill: {'on' if r.fill else 'off'}")
+        self.kit_button.configure(text=f"Kit: {r.kit}")
+
+    def _show_beat(self):
+        """Light up the current beat, about 30 times a second."""
+        self.beat_dots.delete("all")
+        for i in range(self.rhythm.beats_in_bar):
+            on = self.rhythm.playing and i == self.rhythm.beat
+            colour = (GOLD if i == 0 else ACCENT) if on else PANEL
+            self.beat_dots.create_oval(4 + i * 24, 3, 18 + i * 24, 17, fill=colour, outline="")
+        self.root.after(30, self._show_beat)
 
     def _highlight(self, buttons, index):
         for i, b in enumerate(buttons):
@@ -213,6 +296,7 @@ class App:
 
     def quit(self):
         self.release_all()
+        self.rhythm.close()
         self.synth.close()
         self.root.destroy()
 

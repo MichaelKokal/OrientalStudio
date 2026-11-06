@@ -61,6 +61,19 @@ class Synth:
     def all_notes_off(self):
         self.fs.all_notes_off(self.channel)
 
+    def render_drum(self, note, seconds=0.5, velocity=110):
+        """Record one drum hit from the sound bank's standard kit (needs audio=False).
+
+        Returns the hit as mono audio between -1 and 1.
+        """
+        import numpy as np
+        self.fs.program_select(9, self.sfid, 128, 0)
+        self.fs.noteon(9, note, velocity)
+        stereo = np.array(self.fs.get_samples(int(48000 * seconds)), dtype=float)
+        self.fs.noteoff(9, note)
+        self.fs.get_samples(48000)   # let it ring out so the next hit starts clean
+        return (stereo[0::2] + stereo[1::2]) / 2 / 32768
+
     def preset_name(self, bank, preset):
         return self.fs.sfpreset_name(self.sfid, bank, preset)
 
