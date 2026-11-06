@@ -1,6 +1,7 @@
 """The sound engine: turns notes into instrument sounds with FluidSynth."""
 
 import os
+from ctypes import c_double
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -21,7 +22,7 @@ import fluidsynth  # noqa: E402  (needs the library path set up first)
 
 
 class Synth:
-    def __init__(self, soundfont=SOUNDFONT):
+    def __init__(self, soundfont=SOUNDFONT, audio=True):
         if not Path(soundfont).exists():
             raise SystemExit("Sounds not found. Run: python setup_sounds.py")
         # Small audio buffers keep the delay between key press and sound short.
@@ -32,8 +33,8 @@ class Synth:
         self.fs.setting("audio.driver", "wasapi")
         # Start only the audio output. Synth.start() would also open every MIDI
         # input, and Windows lets just one program use a MIDI port at a time,
-        # so it would lock out the Casio.
-        self.fs.audio_driver = fluidsynth.new_fluid_audio_driver(self.fs.settings, self.fs.synth)
+        # so it would lock out the Casio. (audio=False is for tests.)
+        self.fs.audio_driver = fluidsynth.new_fluid_audio_driver(self.fs.settings, self.fs.synth) if audio else None
         self.fs.midi_driver = None
         self.sfid = self.fs.sfload(str(soundfont))
         self.channel = 0
@@ -46,6 +47,16 @@ class Synth:
 
     def note_off(self, note):
         self.fs.noteoff(self.channel, note)
+
+    def set_tuning(self, offsets):
+        """Retune the 12 notes by the given cents (from maqamat.offsets).
+
+        FluidSynth wants the exact pitch of all 128 keys in cents, where
+        key 60 (middle C) is 6000. Notes already sounding are retuned too.
+        """
+        pitch = (c_double * 128)(*(key * 100 + offsets[key % 12] for key in range(128)))
+        fluidsynth.fluid_synth_activate_key_tuning(self.fs.synth, 0, 0, b"maqam", pitch, 1)
+        fluidsynth.fluid_synth_activate_tuning(self.fs.synth, self.channel, 0, 0, 1)
 
     def all_notes_off(self):
         self.fs.all_notes_off(self.channel)

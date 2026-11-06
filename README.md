@@ -6,6 +6,8 @@ Turning a Casio CTK-574 into an Arabic / Oriental keyboard using Python, MIDI an
 
 **Play instruments live.** A window with 9 instruments (piano, oud, qanun, buzuq, ney, mijwiz, violin, strings, accordion) and an on-screen piano. Until the Casio is connected, the computer keyboard is the piano.
 
+**Play in any maqam, with real quarter tones.** Pick Bayati, Rast, Saba, Sikah, Huzam, Hijaz, Nahawand, Kurd or Ajam and the right keys are retuned. In Bayati on D, the E key plays E half-flat, which a normal piano can't do. Move the root and the quarter tones move with it. Dots on the piano show which keys belong to the maqam.
+
 **Add Arabic rhythms to any song.** Load an MP3 or WAV, and Oriental Studio finds the beat and plays a darbuka rhythm in time with it. It follows the song's real beats instead of one fixed tempo, so it stays in sync with live recordings that speed up and slow down.
 
 Rhythms: maqsoum, baladi, saidi, malfuf, ayoub, dabke.
@@ -32,9 +34,13 @@ python play.py
   A S D F G H J K L ; '       white keys (A = C)
   Z / X                       octave down / up
   1 - 9                       pick an instrument
+  Up / Down                   pick a maqam
+  Left / Right                move the maqam's root
 ```
 
-You can also click the keys on screen. The free sound bank has no real Arabic instruments yet, so oud, qanun, buzuq, ney and mijwiz use the closest sounds it has (nylon guitar, harp, sitar, shakuhachi and shenai). Real recordings come later.
+You can also click the keys and buttons on screen. Maqamat live in `oriental_studio/maqamat.py`, and quarter tones are set to exactly half a semitone there (`QUARTER_FLAT = -50`) if you want to tune them by ear.
+
+The free sound bank has no real Arabic instruments yet, so oud, qanun, buzuq, ney and mijwiz use the closest sounds it has (nylon guitar, harp, sitar, shakuhachi and shenai). Real recordings come later.
 
 ## Add rhythms to a song
 
@@ -60,8 +66,8 @@ Rhythm patterns live in `oriental_studio/rhythms.py` as simple text (`D` = dum, 
 
 1. Song import + beat sync ✅
 2. Instrument sounds, played from the computer keyboard ✅
-3. Connect the Casio over USB-MIDI
-4. Maqamat with quarter tones
+3. Maqamat with quarter tones ✅
+4. Connect the Casio over USB-MIDI
 5. Live rhythm engine with tempo control
 6. Real Arabic instrument and darbuka recordings
 7. Automatic accompaniment (bass, chords, drums from left-hand chords)
